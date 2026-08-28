@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>本地大模型运行成本计算器</title>
+<style>
+:root {
+  --ink: #182024;
+  --muted: #657178;
+  --paper: #ffffff;
+  --bg: #edf1f2;
+  --line: #d5dcdf;
+  --teal: #087f7a;
+  --teal-dark: #06635f;
+  --orange: #d05b36;
+  --orange-soft: #f7e8e2;
+  --green-soft: #e4f2ee;
+  --warn: #9a6210;
+  --danger: #b4232d;
+  --shadow: 0 8px 24px rgba(19, 33, 39, .08);
+}
+* { box-sizing: border-box; letter-spacing: 0; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+}
+button, input { font: inherit; }
+button, input { color: inherit; }
+.topbar {
+  min-height: 64px;
+  background: #172529;
+  color: #fff;
+  border-bottom: 4px solid var(--teal);
+}
+.topbar-inner {
+  width: min(1120px, calc(100% - 32px));
+  min-height: 60px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.brand { font-size: 17px; font-weight: 700; }
+.brand-sub { color: #b8c3c6; font-size: 12px; white-space: nowrap; }
+main { width: min(1120px, calc(100% - 32px)); margin: 28px auto 44px; }
+.page-head { margin-bottom: 22px; }
+h1 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 34px); line-height: 1.2; font-weight: 750; }
+.page-head p { margin: 0; color: var(--muted); font-size: 15px; }
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.input-panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel-heading { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+.panel-heading h2, .result-head h2 { margin: 0; font-size: 17px; }
+.panel-heading p, .result-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.form { padding: 18px 20px 20px; }
+.field { margin-bottom: 17px; }
+.field label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; font-weight: 650; overflow-wrap: anywhere; }
+.field label span { min-width: 0; color: var(--muted); font-size: 12px; font-weight: 400; text-align: right; }
+.input-wrap { position: relative; }
+.input-wrap input {
+  width: 100%;
+  height: 44px;
+  padding: 0 92px 0 12px;
+  border: 1px solid #aeb9bd;
+  border-radius: 5px;
+  background: #fff;
+  outline: none;
+}
+.input-wrap input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(8, 127, 122, .14); }
+.input-wrap input[aria-invalid="true"] { border-color: var(--danger); }
+.unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  font-size: 12px;
+}
+.error { min-height: 18px; margin-top: 4px; color: var(--danger); font-size: 12px; }
+.luna-field { padding-top: 15px; border-top: 1px solid var(--line); }
+.example-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid #d5a64b;
+  border-radius: 3px;
+  color: var(--warn);
+  background: #fff9e9;
+  font-size: 11px;
+  font-weight: 600;
+}
+.form-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 5px; }
+.saved { color: var(--muted); font-size: 11px; }
+.reset {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #aeb9bd;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+.reset:hover { border-color: var(--teal); color: var(--teal-dark); }
+.results { min-width: 0; }
+.result-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
+.live { color: var(--teal-dark); font-size: 12px; font-weight: 650; }
+.hero-result {
+  min-height: 142px;
+  padding: 22px 24px;
+  background: #173438;
+  color: #fff;
+  border-left: 5px solid #2ab2a7;
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.hero-label { color: #b9d4d4; font-size: 13px; }
+.hero-value { margin: 4px 0 3px; font-size: clamp(34px, 6vw, 52px); line-height: 1.1; font-weight: 760; font-variant-numeric: tabular-nums; }
+.hero-value small { font-size: 16px; font-weight: 500; }
+.hero-formula { color: #a9c1c2; font: 12px/1.45 Consolas, monospace; overflow-wrap: anywhere; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.metric {
+  min-height: 102px;
+  padding: 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.metric-label { color: var(--muted); font-size: 12px; }
+.metric-value { margin-top: 7px; font-size: 21px; font-weight: 730; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.metric-sub { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.comparison {
+  padding: 20px 22px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.comparison-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.comparison h3 { margin: 0; font-size: 16px; }
+.badge { padding: 4px 8px; border-radius: 4px; background: var(--green-soft); color: var(--teal-dark); font-size: 12px; font-weight: 700; text-align: right; }
+.bar-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 118px; gap: 10px; align-items: center; margin: 13px 0; }
+.bar-name { font-size: 12px; font-weight: 650; }
+.track { position: relative; height: 12px; background: #e7ebed; border-radius: 2px; overflow: hidden; }
+.bar { height: 100%; min-width: 2px; border-radius: 2px; transition: width .25s ease; }
+.bar.local { background: var(--teal); }
+.bar.luna { background: var(--orange); }
+.bar-value { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+.compare-note { margin: 17px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.compare-note strong { color: var(--ink); }
+.assumptions { margin-top: 20px; padding: 17px 20px; border-left: 4px solid #d5a64b; background: #fff9e9; color: #584b34; }
+.assumptions h3 { margin: 0 0 5px; font-size: 14px; }
+.assumptions p { margin: 0; font-size: 12px; }
+footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(--muted); font-size: 11px; }
+@media (max-width: 760px) {
+  .brand-sub { display: none; }
+  main { margin-top: 20px; }
+  .workspace { grid-template-columns: 1fr; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+  .metric:last-child { grid-column: 1 / -1; }
+  .bar-row { grid-template-columns: 84px minmax(0, 1fr); }
+  .bar-value { grid-column: 2; text-align: left; margin-top: -6px; }
+}
+@media (max-width: 430px) {
+  main, .topbar-inner, footer { width: min(100% - 22px, 1120px); }
+  .metrics { grid-template-columns: 1fr; }
+  .metric:last-child { grid-column: auto; }
+  .comparison-head, .result-head { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .hero-result { padding: 19px 17px; }
+  .field label { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .field label span { text-align: left; }
+  .example-tag { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">LLM 成本实验室</div>
+    <div class="brand-sub">本地推理电费 / API Token 价格</div>
+  </div>
+</header>
+<main>
+  <section class="page-head">
+    <h1>本地大模型运行成本计算器</h1>
+    <p>根据整机功耗、实际生成速度和电价，估算每百万输出 token 的电费。</p>
+  </section>
+
+  <div class="workspace">
+    <aside class="input-panel" aria-labelledby="input-title">
+      <div class="panel-heading">
+        <h2 id="input-title">运行参数</h2>
+        <p>修改任意数值后，结果会立即更新。</p>
+      </div>
+      <form class="form" id="cost-form" novalidate>
+        <div class="field">
+          <label for="power">整机平均功耗 <span>建议使用插座实测值</span></label>
+          <div class="input-wrap"><input id="power" name="power" type="number" min="0.01" step="1" inputmode="decimal" value="800"><span class="unit">瓦 (W)</span></div>
+          <div class="error" id="power-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="speed">模型平均速度 <span>按输出 token 计</span></label>
+          <div class="input-wrap"><input id="speed" name="speed" type="number" min="0.01" step="0.1" inputmode="decimal" value="40"><span class="unit">tokens/s</span></div>
+          <div class="error" id="speed-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="electricity">电费单价 <span>含峰谷均价时更准确</span></label>
+          <div class="input-wrap"><input id="electricity" name="electricity" type="number" min="0" step="0.01" inputmode="decimal" value="0.60"><span class="unit">元/kWh</span></div>
+          <div class="error" id="electricity-error" aria-live="polite"></div>
+        </div>
+        <div class="field luna-field">
+          <label for="luna">GPT5.6 LUNA 输出价 <span class="example-tag">示例值，可编辑</span></label>
+          <div class="input-wrap"><input id="luna" name="luna" type="number" min="0" step="0.01" inputmode="decimal" value="10"><span class="unit">元/百万</span></div>
+          <div class="error" id="luna-error" aria-live="polite"></div>
+        </div>
+        <div class="form-actions">
+          <span class="saved" id="saved-status">参数保存在本机浏览器</span>
+          <button class="reset" type="button" id="reset">重置示例</button>
+        </div>
+      </form>
+    </aside>
+
+    <section class="results" aria-labelledby="result-title">
+      <div class="result-head">
+        <div><h2 id="result-title">成本结果</h2><p>统一按 1,000,000 个输出 token 比较</p></div>
+        <div class="live" aria-live="polite" id="status">计算有效</div>
+      </div>
+      <div class="hero-result">
+        <div class="hero-label">本地生成每百万 token 电费</div>
+        <div class="hero-value"><span id="local-cost">¥3.3333</span> <small>/ 百万 tokens</small></div>
+        <div class="hero-formula" id="formula">800W ÷ 1000 × ¥0.60/kWh × 1,000,000 ÷ 40 tokens/s ÷ 3600</div>
+      </div>
+
+      <div class="metrics">
+        <article class="metric">
+          <div class="metric-label">生成 100 万 token 耗时</div>
+          <div class="metric-value" id="duration">6 小时 57 分</div>
+          <div class="metric-sub" id="duration-days">约 0.29 天</div>
+        </article>
+        <article class="metric">
+          <div class="metric-label">每小时输出量</div>
+          <div class="metric-value" id="hourly-tokens">144,000</div>
+          <div class="metric-sub">tokens / 小时</div>
+        </article>
+        <article class="metric">
+          <div class="metric-label">每小时电费</div>
+          <div class="metric-value" id="hourly-cost">¥0.4800</div>
+          <div class="metric-sub">只计算用电成本</div>
+        </article>
+      </div>
+
+      <section class="comparison" aria-labelledby="compare-title">
+        <div class="comparison-head">
+          <div><h3 id="compare-title">与 GPT5.6 LUNA 对比</h3></div>
+          <div class="badge" id="saving-badge">本地电费低 66.67%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-name">本地推理电费</div>
+          <div class="track"><div class="bar local" id="local-bar"></div></div>
+          <div class="bar-value" id="local-compare">¥3.3333</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-name">GPT5.6 LUNA</div>
+          <div class="track"><div class="bar luna" id="luna-bar"></div></div>
+          <div class="bar-value" id="luna-compare">¥10.00</div>
+        </div>
+        <p class="compare-note" id="compare-note"><strong>每百万 token 少 ¥6.6667，LUNA 约为本地电费的 3 倍。</strong> LUNA 单价是可编辑的对比基准，并非页面获取的官方实时价格。</p>
+      </section>
+    </section>
+  </div>
+
+  <section class="assumptions">
+    <h3>成本口径</h3>
+    <p>本地结果仅含运行时电费，不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本；API 基准按输出 token 单价填写。若要做完整 TCO 对比，应将这些成本折算后加入。</p>
+  </section>
+</main>
+<footer>所有计算均在本地浏览器完成，不会上传输入数据。GPT5.6 LUNA 名称及单价以用户填写的对比基准为准。</footer>
+<script>
+(() => {
+  'use strict';
+  const defaults = { power: 800, speed: 40, electricity: 0.60, luna: 10 };
+  const ids = Object.keys(defaults);
+  const inputs = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+  const storageKey = 'llm-cost-calculator-v1';
+
+  function money(value, minimum = 2, maximum = 4) {
+    if (!Number.isFinite(value)) return '--';
+    const digits = value !== 0 && value < 0.01 ? 6 : maximum;
+    return '¥' + value.toLocaleString('zh-CN', { minimumFractionDigits: minimum, maximumFractionDigits: digits });
+  }
+
+  function compactNumber(value) {
+    return value.toLocaleString('zh-CN', { maximumFractionDigits: value < 100 ? 2 : 0 });
+  }
+
+  function readValues() {
+    return Object.fromEntries(ids.map(id => [id, Number(inputs[id].value)]));
+  }
+
+  function validate(values) {
+    let valid = true;
+    ids.forEach(id => {
+      const allowZero = id === 'electricity' || id === 'luna';
+      const bad = !Number.isFinite(values[id]) || (allowZero ? values[id] < 0 : values[id] <= 0);
+      inputs[id].setAttribute('aria-invalid', String(bad));
+      document.getElementById(id + '-error').textContent = bad ? (allowZero ? '请输入大于或等于 0 的数值' : '请输入大于 0 的数值') : '';
+      valid = valid && !bad;
+    });
+    return valid;
+  }
+
+  function formatDuration(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.round((seconds % 3600) / 60);
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      const remainHours = hours % 24;
+      return days + ' 天 ' + remainHours + ' 小时';
+    }
+    return hours + ' 小时 ' + minutes + ' 分';
+  }
+
+  function setInvalidState() {
+    document.getElementById('status').textContent = '请修正输入';
+    ['local-cost', 'duration', 'duration-days', 'hourly-tokens', 'hourly-cost', 'local-compare', 'luna-compare'].forEach(id => {
+      document.getElementById(id).textContent = '--';
+    });
+    document.getElementById('saving-badge').textContent = '暂无对比';
+    document.getElementById('compare-note').textContent = '输入有效参数后显示结果。';
+    document.getElementById('local-bar').style.width = '0';
+    document.getElementById('luna-bar').style.width = '0';
+  }
+
+  function calculate() {
+    const values = readValues();
+    if (!validate(values)) {
+      setInvalidState();
+      return;
+    }
+
+    const hourlyCost = values.power / 1000 * values.electricity;
+    const durationSeconds = 1000000 / values.speed;
+    const localCost = hourlyCost * durationSeconds / 3600;
+    const hourlyTokens = values.speed * 3600;
+    const maxCost = Math.max(localCost, values.luna, Number.EPSILON);
+    const difference = values.luna - localCost;
+
+    document.getElementById('status').textContent = '计算有效';
+    document.getElementById('local-cost').textContent = money(localCost);
+    document.getElementById('formula').textContent = compactNumber(values.power) + 'W ÷ 1000 × ' + money(values.electricity, 2, 4) + '/kWh × 1,000,000 ÷ ' + compactNumber(values.speed) + ' tokens/s ÷ 3600';
+    document.getElementById('duration').textContent = formatDuration(durationSeconds);
+    document.getElementById('duration-days').textContent = '约 ' + (durationSeconds / 86400).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + ' 天';
+    document.getElementById('hourly-tokens').textContent = compactNumber(hourlyTokens);
+    document.getElementById('hourly-cost').textContent = money(hourlyCost);
+    document.getElementById('local-compare').textContent = money(localCost);
+    document.getElementById('luna-compare').textContent = money(values.luna);
+    document.getElementById('local-bar').style.width = Math.max(localCost / maxCost * 100, localCost > 0 ? 0.5 : 0) + '%';
+    document.getElementById('luna-bar').style.width = Math.max(values.luna / maxCost * 100, values.luna > 0 ? 0.5 : 0) + '%';
+
+    const badge = document.getElementById('saving-badge');
+    const note = document.getElementById('compare-note');
+    if (values.luna === 0 && localCost === 0) {
+      badge.textContent = '成本相同';
+      note.innerHTML = '<strong>两项成本均为 ¥0。</strong> LUNA 单价是可编辑的对比基准，并非页面获取的官方实时价格。';
+    } else if (difference > 0) {
+      const saving = difference / values.luna * 100;
+      const ratio = values.luna / localCost;
+      badge.textContent = '本地电费低 ' + saving.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + '%';
+      note.innerHTML = '<strong>每百万 token 少 ' + money(difference) + '，LUNA 约为本地电费的 ' + ratio.toLocaleString('zh-CN', { maximumFractionDigits: 1 }) + ' 倍。</strong> LUNA 单价是可编辑的对比基准，并非页面获取的官方实时价格。';
+    } else if (difference < 0) {
+      const extra = -difference;
+      badge.textContent = 'LUNA 低 ' + (extra / localCost * 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + '%';
+      note.innerHTML = '<strong>本地每百万 token 电费高 ' + money(extra) + '。</strong> LUNA 单价是可编辑的对比基准，并非页面获取的官方实时价格。';
+    } else {
+      badge.textContent = '成本相同';
+      note.innerHTML = '<strong>两项每百万 token 成本相同。</strong> LUNA 单价是可编辑的对比基准，并非页面获取的官方实时价格。';
+    }
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(values));
+      document.getElementById('saved-status').textContent = '参数已保存在本机浏览器';
+    } catch (_) {
+      document.getElementById('saved-status').textContent = '当前浏览器未保存参数';
+    }
+  }
+
+  function loadSaved() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey));
+      if (saved && typeof saved === 'object') {
+        ids.forEach(id => {
+          if (Number.isFinite(Number(saved[id]))) inputs[id].value = saved[id];
+        });
+      }
+    } catch (_) {}
+  }
+
+  ids.forEach(id => inputs[id].addEventListener('input', calculate));
+  document.getElementById('reset').addEventListener('click', () => {
+    ids.forEach(id => { inputs[id].value = defaults[id]; });
+    try { localStorage.removeItem(storageKey); } catch (_) {}
+    calculate();
+  });
+  loadSaved();
+  calculate();
+})();
+</script>
+</body>
+</html>
