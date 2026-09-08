@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>本地大模型运行成本计算器</title>
+<script>
+(() => {
+  const themeKey = 'llm-cost-theme';
+  let theme = 'light';
+  try {
+    const savedTheme = localStorage.getItem(themeKey);
+    theme = savedTheme === 'light' || savedTheme === 'dark'
+      ? savedTheme
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  } catch (_) {
+    theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.dataset.theme = theme;
+})();
+</script>
+<style>
+:root {
+  --ink: #182024;
+  --muted: #657178;
+  --paper: #ffffff;
+  --bg: #edf1f2;
+  --line: #d5dcdf;
+  --teal: #087f7a;
+  --teal-dark: #06635f;
+  --orange: #d05b36;
+  --blue: #2477c8;
+  --orange-soft: #f7e8e2;
+  --green-soft: #e4f2ee;
+  --warn: #9a6210;
+  --danger: #b4232d;
+  --shadow: 0 8px 24px rgba(19, 33, 39, .08);
+  --input-bg: #ffffff;
+  --input-border: #aeb9bd;
+  --topbar-bg: #172529;
+  --topbar-ink: #ffffff;
+  --topbar-muted: #b8c3c6;
+  --hero-bg: #173438;
+  --hero-ink: #ffffff;
+  --hero-label: #b9d4d4;
+  --hero-formula: #a9c1c2;
+  --track-bg: #e7ebed;
+  --tag-border: #d5a64b;
+  --tag-bg: #fff9e9;
+  --notice-bg: #fff9e9;
+  --notice-ink: #584b34;
+  --notice-border: #d5a64b;
+  --toggle-bg: rgba(255, 255, 255, .06);
+  --toggle-border: #506166;
+  --toggle-hover: #26383d;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --ink: #edf3f4;
+  --muted: #a8b4b8;
+  --paper: #192226;
+  --bg: #101619;
+  --line: #344146;
+  --teal: #2ab2a7;
+  --teal-dark: #65d0c7;
+  --orange: #e87b57;
+  --blue: #5aa7ee;
+  --green-soft: #193934;
+  --warn: #f4c463;
+  --danger: #ff7b84;
+  --shadow: 0 10px 28px rgba(0, 0, 0, .25);
+  --input-bg: #11191c;
+  --input-border: #536167;
+  --topbar-bg: #0b1012;
+  --topbar-ink: #f4f7f7;
+  --topbar-muted: #a8b4b8;
+  --hero-bg: #102e31;
+  --hero-ink: #f5fbfb;
+  --hero-label: #b6d7d5;
+  --hero-formula: #a9c7c6;
+  --track-bg: #303b40;
+  --tag-border: #8b6b2e;
+  --tag-bg: #2d271a;
+  --notice-bg: #2d271a;
+  --notice-ink: #e2d1a8;
+  --notice-border: #c9973d;
+  --toggle-bg: rgba(255, 255, 255, .08);
+  --toggle-border: #46565c;
+  --toggle-hover: #1e2c30;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; letter-spacing: 0; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  transition: background-color .2s ease, color .2s ease;
+  font: 14px/1.5 "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+}
+button, input { font: inherit; }
+button, input { color: inherit; }
+.topbar {
+  min-height: 64px;
+  background: var(--topbar-bg);
+  color: var(--topbar-ink);
+  border-bottom: 4px solid var(--teal);
+}
+.topbar-inner {
+  width: min(1120px, calc(100% - 32px));
+  min-height: 60px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.brand { font-size: 17px; font-weight: 700; }
+.header-actions { display: flex; align-items: center; gap: 13px; }
+.brand-sub { color: var(--topbar-muted); font-size: 12px; white-space: nowrap; }
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--toggle-border);
+  border-radius: 5px;
+  background: var(--toggle-bg);
+  color: var(--topbar-ink);
+  cursor: pointer;
+}
+.theme-toggle:hover { background: var(--toggle-hover); }
+.theme-toggle:focus-visible { outline: 3px solid rgba(42, 178, 167, .45); outline-offset: 2px; }
+.theme-icon { width: 20px; line-height: 1; font-size: 19px; text-align: center; }
+main { width: min(1120px, calc(100% - 32px)); margin: 28px auto 44px; }
+.page-head { margin-bottom: 22px; }
+h1 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 34px); line-height: 1.2; font-weight: 750; }
+.page-head p { margin: 0; color: var(--muted); font-size: 15px; }
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.input-panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel-heading { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+.panel-heading h2, .result-head h2 { margin: 0; font-size: 17px; }
+.panel-heading p, .result-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.form { padding: 18px 20px 20px; }
+.field { margin-bottom: 17px; }
+.field label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; font-weight: 650; overflow-wrap: anywhere; }
+.field label span { min-width: 0; color: var(--muted); font-size: 12px; font-weight: 400; text-align: right; }
+.input-wrap { position: relative; }
+.input-wrap input {
+  width: 100%;
+  height: 44px;
+  padding: 0 92px 0 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background: var(--input-bg);
+  outline: none;
+}
+.input-wrap input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(8, 127, 122, .14); }
+.input-wrap input[aria-invalid="true"] { border-color: var(--danger); }
+.unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  font-size: 12px;
+}
+.error { min-height: 18px; margin-top: 4px; color: var(--danger); font-size: 12px; }
+.api-field { padding-top: 15px; border-top: 1px solid var(--line); }
+.price-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid var(--tag-border);
+  border-radius: 3px;
+  color: var(--warn);
+  background: var(--tag-bg);
+  font-size: 11px;
+  font-weight: 600;
+}
+.form-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 5px; }
+.saved { color: var(--muted); font-size: 11px; }
+.reset {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background: var(--input-bg);
+  cursor: pointer;
+}
+.reset:hover { border-color: var(--teal); color: var(--teal-dark); }
+.results { min-width: 0; }
+.result-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
+.live { color: var(--teal-dark); font-size: 12px; font-weight: 650; }
+.result-tools { display: flex; align-items: center; gap: 12px; }
+.capture-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+.capture-btn:hover { border-color: var(--teal); color: var(--teal-dark); }
+.capture-btn:focus-visible { outline: 3px solid rgba(42, 178, 167, .45); outline-offset: 2px; }
+.hero-result {
+  min-height: 142px;
+  padding: 22px 24px;
+  background: var(--hero-bg);
+  color: var(--hero-ink);
+  border-left: 5px solid #2ab2a7;
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.hero-label { color: var(--hero-label); font-size: 13px; }
+.hero-value { margin: 4px 0 3px; font-size: clamp(34px, 6vw, 52px); line-height: 1.1; font-weight: 760; font-variant-numeric: tabular-nums; }
+.hero-value small { font-size: 16px; font-weight: 500; }
+.hero-formula { color: var(--hero-formula); font: 12px/1.45 Consolas, monospace; overflow-wrap: anywhere; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.metric {
+  min-height: 102px;
+  padding: 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.metric-label { color: var(--muted); font-size: 12px; }
+.metric-value { margin-top: 7px; font-size: 21px; font-weight: 730; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.metric-sub { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.comparison {
+  padding: 20px 22px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.comparison-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.comparison h3 { margin: 0; font-size: 16px; }
+.comparison-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+.badge { padding: 4px 8px; border-radius: 4px; background: var(--green-soft); color: var(--teal-dark); font-size: 12px; font-weight: 700; text-align: right; }
+.bar-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 118px; gap: 10px; align-items: center; margin: 13px 0; }
+.bar-name { font-size: 12px; font-weight: 650; }
+.track { position: relative; height: 12px; background: var(--track-bg); border-radius: 2px; overflow: hidden; }
+.bar { height: 100%; min-width: 2px; border-radius: 2px; transition: width .25s ease; }
+.bar.local { background: var(--teal); }
+.bar.api { background: var(--orange); }
+.bar.deepseek { background: var(--blue); }
+.bar-name small { display: block; margin-top: 1px; color: var(--muted); font-size: 10px; font-weight: 400; }
+.bar-value { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+.api-breakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--line); }
+.breakdown-item { min-width: 0; padding-right: 18px; }
+.breakdown-item + .breakdown-item { padding-left: 18px; padding-right: 0; border-left: 1px solid var(--line); }
+.breakdown-item span, .breakdown-item small { display: block; color: var(--muted); font-size: 11px; }
+.breakdown-item strong { display: block; margin: 3px 0 1px; font-size: 17px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.compare-note { margin: 17px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.compare-note strong { color: var(--ink); }
+.assumptions { margin-top: 20px; padding: 17px 20px; border-left: 4px solid var(--notice-border); background: var(--notice-bg); color: var(--notice-ink); }
+.assumptions h3 { margin: 0 0 5px; font-size: 14px; }
+.assumptions p { margin: 0; font-size: 12px; }
+footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(--muted); font-size: 11px; }
+.price-disclaimer { display: block; margin-top: 5px; }
+@media (max-width: 760px) {
+  .brand-sub { display: none; }
+  main { margin-top: 20px; }
+  .workspace { grid-template-columns: 1fr; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+  .metric:last-child { grid-column: 1 / -1; }
+  .bar-row { grid-template-columns: 84px minmax(0, 1fr); }
+  .bar-value { grid-column: 2; text-align: left; margin-top: -6px; }
+}
+@media (max-width: 520px) {
+  main, .topbar-inner, footer { width: min(100% - 22px, 1120px); }
+  .metrics { grid-template-columns: 1fr; }
+  .metric:last-child { grid-column: auto; }
+  .comparison-head, .result-head { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .hero-result { padding: 19px 17px; }
+  .field label { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .field label span { text-align: left; }
+  .price-tag { margin-left: 0; }
+  .api-breakdown { grid-template-columns: 1fr; }
+  .breakdown-item { padding-right: 0; }
+  .breakdown-item + .breakdown-item { margin-top: 12px; padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+}
+
+@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="header-actions" style="margin-left:auto">
+      <button class="theme-toggle" type="button" id="theme-toggle" aria-label="切换到深色模式" aria-pressed="false" title="切换到深色模式">
+        <span class="theme-icon" id="theme-icon" aria-hidden="true">☾</span>
+      </button>
+    </div>
+  </div>
+</header>
+<main>
+  <section class="page-head">
+    <h1>本地大模型运行成本计算器</h1>
+    <p>按一次预计输入与预计输出 tokens，合并估算 Prefill、输出，并对比部分官方 API最低成本。</p>
+  </section>
+
+  <div class="workspace">
+    <aside class="input-panel" aria-labelledby="input-title">
+      <div class="panel-heading">
+        <h2 id="input-title">运行参数</h2>
+        <p>修改任意数值后，结果会立即更新。</p>
+      </div>
+      <form class="form" id="cost-form" novalidate>
+        <div class="field">
+          <label for="power">整机平均功耗 <span>建议使用插座实测值</span></label>
+          <div class="input-wrap"><input id="power" name="power" type="number" min="0.01" step="1" inputmode="decimal" value="800"><span class="unit">瓦 (W)</span></div>
+          <div class="error" id="power-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="electricity">电费单价 <span>含峰谷均价时更准确</span></label>
+          <div class="input-wrap"><input id="electricity" name="electricity" type="number" min="0" step="0.01" inputmode="decimal" value="0.60"><span class="unit">元/kWh</span></div>
+          <div class="error" id="electricity-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="speed">模型输出速度 <span>Decode 实测均速</span></label>
+          <div class="input-wrap"><input id="speed" name="speed" type="number" min="0.01" step="0.1" inputmode="decimal" value="40"><span class="unit">tokens/s</span></div>
+          <div class="error" id="speed-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="inputTokens">预计输入长度 <span>一次输入上下文</span></label>
+          <div class="input-wrap"><input id="inputTokens" name="inputTokens" type="number" min="0" step="1" inputmode="numeric" value="32000"><span class="unit">tokens</span></div>
+          <div class="error" id="inputTokens-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="outputTokens">预计输出长度 <span>默认 100 万 tokens</span></label>
+          <div class="input-wrap"><input id="outputTokens" name="outputTokens" type="number" min="0" step="1" inputmode="numeric" value="1000000"><span class="unit">tokens</span></div>
+          <div class="error" id="outputTokens-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="prefillSpeed">Prefill 速度 <span>建议填写实测均速</span></label>
+          <div class="input-wrap"><input id="prefillSpeed" name="prefillSpeed" type="number" min="0.01" step="0.1" inputmode="decimal" value="1000"><span class="unit">tokens/s</span></div>
+          <div class="error" id="prefillSpeed-error" aria-live="polite"></div>
+        </div>
+        <div class="field api-field">
+          <label for="cachedInputPrice">GPT5.6 LUNA 缓存输入价 <span class="price-tag">0.1344 元/M</span></label>
+          <div class="input-wrap"><input id="cachedInputPrice" name="cachedInputPrice" type="number" min="0" step="0.0001" inputmode="decimal" value="0.1344"><span class="unit">元/M</span></div>
+          <div class="error" id="cachedInputPrice-error" aria-live="polite"></div>
+        </div>
+        <div class="field">
+          <label for="outputPrice">GPT5.6 LUNA 输出价 <span class="price-tag">8.06 元/M</span></label>
+          <div class="input-wrap"><input id="outputPrice" name="outputPrice" type="number" min="0" step="0.01" inputmode="decimal" value="8.06"><span class="unit">元/M</span></div>
+          <div class="error" id="outputPrice-error" aria-live="polite"></div>
+        </div>
+        <div class="form-actions">
+          <span class="saved" id="saved-status">参数保存在本机浏览器</span>
+          <button class="reset" type="button" id="reset">重置参数</button>
+        </div>
+      </form>
+    </aside>
+
+    <section class="results" aria-labelledby="result-title">
+      <div class="result-head">
+        <div><h2 id="result-title">成本结果</h2><p>一次预计输入 + 预计输出 tokens；本地包含 Prefill 电费</p></div>
+        <div class="result-tools">
+          <button class="capture-btn" type="button" id="capture-btn" title="截取右侧成本结果并保存为 JPG 图片">📷 保存结果 JPG</button>
+          <div class="live" aria-live="polite" id="status">计算有效</div>
+        </div>
+      </div>
+      <div class="hero-result">
+        <div class="hero-label">本地综合电费（含一次输入与预计输出）</div>
+        <div class="hero-value"><span id="local-cost">¥3.3376</span> <small>/ 计算场景</small></div>
+        <div class="hero-formula" id="formula">(32,000 ÷ 1,000 + 1,000,000 ÷ 40) 秒 × 800W ÷ 1000 × ¥0.60/kWh ÷ 3600</div>
+      </div>
+
+      <div class="metrics">
+        <article class="metric">
+          <div class="metric-label">Prefill 阶段</div>
+          <div class="metric-value" id="prefill-cost">¥0.004267</div>
+          <div class="metric-sub" id="prefill-duration">32 秒 · 32,000 输入 tokens</div>
+        </article>
+        <article class="metric">
+          <div class="metric-label">输出阶段</div>
+          <div class="metric-value" id="decode-cost">¥3.3333</div>
+          <div class="metric-sub" id="decode-duration">6 小时 57 分 · 1,000,000 输出 tokens</div>
+        </article>
+        <article class="metric">
+          <div class="metric-label">本地总耗时</div>
+          <div class="metric-value" id="duration">6 小时 57 分</div>
+          <div class="metric-sub" id="duration-days">Prefill + Decode，约 0.29 天</div>
+        </article>
+        <article class="metric">
+          <div class="metric-label">每小时输出量</div>
+          <div class="metric-value" id="hourly-tokens">144,000</div>
+          <div class="metric-sub">tokens / 小时</div>
+        </article>
+        <article class="metric">
+          <div class="metric-label">整机每小时电费</div>
+          <div class="metric-value" id="hourly-cost">¥0.4800</div>
+          <div class="metric-sub">按输入功耗与电价计算</div>
+        </article>
+      </div>
+
+      <section class="comparison" aria-labelledby="compare-title">
+        <div class="comparison-head">
+          <div><h3 id="compare-title">本地与官方 API 成本对比</h3><p>各项均包含本次预计输入与预计输出 tokens</p></div>
+          <div class="badge" id="saving-badge">本地综合电费低 58.61%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-name">本地综合电费</div>
+          <div class="track"><div class="bar local" id="local-bar"></div></div>
+          <div class="bar-value" id="local-compare">¥3.3376</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-name">GPT5.6 LUNA API 总费用</div>
+          <div class="track"><div class="bar api" id="api-bar"></div></div>
+          <div class="bar-value" id="api-compare">¥8.0643</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-name">DeepSeek V4 Flash<small>空闲时段</small></div>
+          <div class="track"><div class="bar deepseek" id="deepseek-bar"></div></div>
+          <div class="bar-value" id="deepseek-compare" title="缓存输入 ¥0.05/M，输出 ¥4.50/M">¥4.5016</div>
+        </div>
+        <div class="api-breakdown" aria-label="GPT5.6 LUNA 官方 API 费用明细：缓存输入与输出">
+          <div class="breakdown-item">
+            <span>缓存输入费用</span>
+            <strong id="api-input-cost">¥0.004301</strong>
+            <small id="api-input-detail">32,000 tokens × ¥0.1344/M</small>
+          </div>
+          <div class="breakdown-item">
+            <span>输出费用</span>
+            <strong id="api-output-cost">¥8.06</strong>
+            <small id="api-output-detail">1,000,000 tokens × ¥8.06/M</small>
+          </div>
+        </div>
+        <p class="compare-note" id="compare-note"><strong>本地综合电费高 ¥1.6533。</strong> GPT5.6 LUNA API 总费用为缓存输入与输出费用之和。</p>
+      </section>
+    </section>
+  </div>
+
+  <section class="assumptions">
+    <h3>成本口径</h3>
+    <p>本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 缓存输入费用 + 预计输出 tokens 费用。</p>
+  </section>
+</main>
+<footer>所有计算均在本地浏览器完成，不会上传输入数据。GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。<small class="price-disclaimer">本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。</small></footer>
+<script>
+(() => {
+  'use strict';
+  const defaults = {
+    power: 800,
+    electricity: 0.60,
+    speed: 40,
+    inputTokens: 32000,
+    outputTokens: 1000000,
+    prefillSpeed: 1000,
+    cachedInputPrice: 0.1344,
+    outputPrice: 8.06
+  };
+  const ids = Object.keys(defaults);
+  const inputs = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+  const storageKey = 'llm-cost-calculator-v4';
+  const legacyStorageKeys = ['llm-cost-calculator-v2', 'llm-cost-calculator-v1'];
+  const themeKey = 'llm-cost-theme';
+
+  function money(value, minimum = 2, maximum = 4) {
+    if (!Number.isFinite(value)) return '--';
+    const digits = value !== 0 && value < 0.01 ? 6 : maximum;
+    return '¥' + value.toLocaleString('zh-CN', { minimumFractionDigits: minimum, maximumFractionDigits: digits });
+  }
+
+  function compactNumber(value) {
+    return value.toLocaleString('zh-CN', { maximumFractionDigits: value < 100 ? 2 : 0 });
+  }
+
+  function readValues() {
+    return Object.fromEntries(ids.map(id => [id, Number(inputs[id].value)]));
+  }
+
+  function validate(values) {
+    let valid = true;
+    const allowZero = new Set(['electricity', 'inputTokens', 'outputTokens', 'cachedInputPrice', 'outputPrice']);
+    ids.forEach(id => {
+      const canBeZero = allowZero.has(id);
+      const bad = !Number.isFinite(values[id]) || (canBeZero ? values[id] < 0 : values[id] <= 0);
+      inputs[id].setAttribute('aria-invalid', String(bad));
+      document.getElementById(id + '-error').textContent = bad ? (canBeZero ? '请输入大于或等于 0 的数值' : '请输入大于 0 的数值') : '';
+      valid = valid && !bad;
+    });
+    return valid;
+  }
+
+  function formatDuration(seconds) {
+    if (seconds < 60) {
+      return seconds.toLocaleString('zh-CN', { maximumFractionDigits: 1 }) + ' 秒';
+    }
+    const roundedMinutes = Math.round(seconds / 60);
+    if (roundedMinutes < 60) return roundedMinutes + ' 分';
+    const hours = Math.floor(roundedMinutes / 60);
+    const minutes = roundedMinutes % 60;
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      const remainHours = hours % 24;
+      return days + ' 天 ' + remainHours + ' 小时';
+    }
+    return hours + ' 小时 ' + minutes + ' 分';
+  }
+
+  function setInvalidState() {
+    document.getElementById('status').textContent = '请修正输入';
+    [
+      'local-cost', 'prefill-cost', 'prefill-duration', 'decode-cost', 'decode-duration',
+      'duration', 'duration-days', 'hourly-tokens', 'hourly-cost', 'local-compare',
+      'api-compare', 'deepseek-compare', 'api-input-cost', 'api-input-detail', 'api-output-cost', 'api-output-detail'
+    ].forEach(id => {
+      document.getElementById(id).textContent = '--';
+    });
+    document.getElementById('formula').textContent = '输入有效参数后显示计算公式';
+    document.getElementById('saving-badge').textContent = '暂无对比';
+    document.getElementById('compare-note').textContent = '输入有效参数后显示结果。';
+    document.getElementById('local-bar').style.width = '0';
+    document.getElementById('api-bar').style.width = '0';
+    document.getElementById('deepseek-bar').style.width = '0';
+  }
+
+  function calculate() {
+    const values = readValues();
+    if (!validate(values)) {
+      setInvalidState();
+      return;
+    }
+
+    const outputTokens = values.outputTokens;
+    const hourlyCost = values.power / 1000 * values.electricity;
+    const prefillSeconds = values.inputTokens / values.prefillSpeed;
+    const decodeSeconds = outputTokens / values.speed;
+    const durationSeconds = prefillSeconds + decodeSeconds;
+    const prefillCost = hourlyCost * prefillSeconds / 3600;
+    const decodeCost = hourlyCost * decodeSeconds / 3600;
+    const localCost = prefillCost + decodeCost;
+    const apiInputCost = values.inputTokens / 1000000 * values.cachedInputPrice;
+    const apiOutputCost = outputTokens / 1000000 * values.outputPrice;
+    const apiCost = apiInputCost + apiOutputCost;
+    const deepseekInputPrice = 0.05;
+    const deepseekOutputPrice = 4.5;
+    const deepseekCost = values.inputTokens / 1000000 * deepseekInputPrice + outputTokens / 1000000 * deepseekOutputPrice;
+    const hourlyTokens = values.speed * 3600;
+    const maxCost = Math.max(localCost, apiCost, deepseekCost, Number.EPSILON);
+    const difference = apiCost - localCost;
+
+    document.getElementById('status').textContent = '计算有效';
+    document.getElementById('local-cost').textContent = money(localCost);
+    document.getElementById('formula').textContent = '(' + compactNumber(values.inputTokens) + ' ÷ ' + compactNumber(values.prefillSpeed) + ' + ' + compactNumber(values.outputTokens) + ' ÷ ' + compactNumber(values.speed) + ') 秒 × ' + compactNumber(values.power) + 'W ÷ 1000 × ' + money(values.electricity, 2, 4) + '/kWh ÷ 3600';
+    document.getElementById('prefill-cost').textContent = money(prefillCost);
+    document.getElementById('prefill-duration').textContent = formatDuration(prefillSeconds) + ' · ' + compactNumber(values.inputTokens) + ' 输入 tokens';
+    document.getElementById('decode-cost').textContent = money(decodeCost);
+    document.getElementById('decode-duration').textContent = formatDuration(decodeSeconds) + ' · ' + compactNumber(values.outputTokens) + ' 输出 tokens';
+    document.getElementById('duration').textContent = formatDuration(durationSeconds);
+    document.getElementById('duration-days').textContent = 'Prefill + Decode · 约 ' + (durationSeconds / 86400).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + ' 天';
+    document.getElementById('hourly-tokens').textContent = compactNumber(hourlyTokens);
+    document.getElementById('hourly-cost').textContent = money(hourlyCost);
+    document.getElementById('local-compare').textContent = money(localCost);
+    document.getElementById('api-compare').textContent = money(apiCost);
+    document.getElementById('deepseek-compare').textContent = money(deepseekCost);
+    document.getElementById('api-input-cost').textContent = money(apiInputCost);
+    document.getElementById('api-input-detail').textContent = compactNumber(values.inputTokens) + ' tokens × ' + money(values.cachedInputPrice, 4, 4) + '/M';
+    document.getElementById('api-output-cost').textContent = money(apiOutputCost);
+    document.getElementById('api-output-detail').textContent = compactNumber(values.outputTokens) + ' tokens × ' + money(values.outputPrice, 2, 4) + '/M';
+    document.getElementById('local-bar').style.width = Math.max(localCost / maxCost * 100, localCost > 0 ? 0.5 : 0) + '%';
+    document.getElementById('api-bar').style.width = Math.max(apiCost / maxCost * 100, apiCost > 0 ? 0.5 : 0) + '%';
+    document.getElementById('deepseek-bar').style.width = Math.max(deepseekCost / maxCost * 100, deepseekCost > 0 ? 0.5 : 0) + '%';
+
+    const badge = document.getElementById('saving-badge');
+    const note = document.getElementById('compare-note');
+    if (apiCost === 0 && localCost === 0) {
+      badge.textContent = '成本相同';
+      note.innerHTML = '<strong>两项成本均为 ¥0。</strong> GPT5.6 LUNA API 总费用为缓存输入与输出费用之和。';
+    } else if (difference > 0) {
+      const saving = difference / apiCost * 100;
+      badge.textContent = '本地综合电费低 ' + saving.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + '%';
+      if (localCost === 0) {
+        note.innerHTML = '<strong>本地综合电费为 ¥0，比 GPT5.6 LUNA API 少 ' + money(difference) + '。</strong> GPT5.6 LUNA API 总费用包含缓存输入与输出费用。';
+      } else {
+        const ratio = apiCost / localCost;
+        note.innerHTML = '<strong>本地综合电费少 ' + money(difference) + '，GPT5.6 LUNA API 约为本地电费的 ' + ratio.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + ' 倍。</strong> GPT5.6 LUNA API 总费用包含缓存输入与输出费用。';
+      }
+    } else if (difference < 0) {
+      const extra = -difference;
+      badge.textContent = 'GPT5.6 LUNA API 低 ' + (extra / localCost * 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + '%';
+      note.innerHTML = '<strong>本地综合电费高 ' + money(extra) + '。</strong> GPT5.6 LUNA API 总费用为缓存输入与输出费用之和。';
+    } else {
+      badge.textContent = '成本相同';
+      note.innerHTML = '<strong>本地综合电费与 GPT5.6 LUNA API 总费用相同。</strong> GPT5.6 LUNA API 总费用包含缓存输入与输出费用。';
+    }
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(values));
+      document.getElementById('saved-status').textContent = '参数已保存在本机浏览器';
+    } catch (_) {
+      document.getElementById('saved-status').textContent = '当前浏览器未保存参数';
+    }
+  }
+
+  function loadSaved() {
+    try {
+      const current = JSON.parse(localStorage.getItem(storageKey));
+      if (current && typeof current === 'object') {
+        ids.forEach(id => {
+          if (Number.isFinite(Number(current[id]))) inputs[id].value = current[id];
+        });
+        return;
+      }
+
+      let legacy = null;
+      for (const key of legacyStorageKeys) {
+        const candidate = JSON.parse(localStorage.getItem(key));
+        if (candidate && typeof candidate === 'object') {
+          legacy = candidate;
+          break;
+        }
+      }
+      if (legacy) {
+        ['power', 'electricity', 'speed'].forEach(id => {
+          if (Number.isFinite(Number(legacy[id]))) inputs[id].value = legacy[id];
+        });
+      }
+    } catch (_) {}
+  }
+
+  function renderTheme(theme) {
+    const isDark = theme === 'dark';
+    document.documentElement.dataset.theme = theme;
+    document.getElementById('theme-icon').textContent = isDark ? '☀' : '☾';
+    const label = isDark ? '切换到浅色模式' : '切换到深色模式';
+    const toggle = document.getElementById('theme-toggle');
+    toggle.setAttribute('aria-label', label);
+    toggle.setAttribute('aria-pressed', String(isDark));
+    toggle.title = label;
+  }
+
+  function toggleTheme() {
+    const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    renderTheme(nextTheme);
+    try { localStorage.setItem(themeKey, nextTheme); } catch (_) {}
+  }
+
+  function captureResult() {
+    const target = document.querySelector('.results');
+    const btn = document.getElementById('capture-btn');
+    if (!target || !btn) return;
+    const w = Math.max(1, target.offsetWidth);
+    const h = Math.max(1, target.offsetHeight);
+    const padding = 16;
+    const noteExtraHeight = 260;
+    const scale = 2;
+    const theme = document.documentElement.dataset.theme || 'light';
+    const cs = getComputedStyle(document.documentElement);
+    const bg = cs.getPropertyValue('--bg').trim() || '#ffffff';
+    const ink = cs.getPropertyValue('--ink').trim() || '#182024';
+
+    let css = '';
+    for (const sheet of document.styleSheets) {
+      try {
+        const rules = sheet.cssRules || sheet.rules;
+        for (const rule of rules) css += rule.cssText + '\n';
+      } catch (_) {}
+    }
+
+    const clone = target.cloneNode(true);
+    clone.style.minWidth = '0';
+    const tools = clone.querySelector('.result-tools');
+    if (tools) tools.style.display = 'none';
+
+    // Keep the detailed comparison on the page, but use a compact three-part note in exports.
+    const breakdown = clone.querySelector('.api-breakdown');
+    if (breakdown) breakdown.remove();
+    const compareNote = clone.querySelector('.compare-note');
+    if (compareNote) compareNote.remove();
+    const exportNote = document.createElement('div');
+    exportNote.style.cssText = 'margin-top:16px;padding:12px 14px;border:1px solid #d5dcdf;border-left:4px solid #d5a64b;border-radius:5px;background:#fff9e9;color:#584b34;font-size:11px;line-height:1.6;overflow-wrap:anywhere;';
+    const noteParagraphs = [
+      '本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 缓存输入费用 + 预计输出 tokens 费用。每个人的使用场景可能有所不同，可自行前往 https://li-hikinghat.github.io/llm_cost_calculator/ 计算。本计算器仅供计算本地部署LLM场景电费使用，无其他含义，并非逼你一定要本地部署使用，看不顺眼的可自行退出。',
+      'GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。',
+      '本计算器已在 https://github.com/Li-Hikinghat/llm_cost_calculator 开源，可自行查看代码等'
+    ];
+    noteParagraphs.forEach(function (text) {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = text;
+      paragraph.style.cssText = 'margin:0 0 8px;';
+      exportNote.appendChild(paragraph);
+    });
+    exportNote.lastElementChild.style.marginBottom = '0';
+    clone.appendChild(exportNote);
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('xmlns', svgNS);
+    svg.setAttribute('width', String(w + padding * 2));
+    svg.setAttribute('height', String(h + noteExtraHeight + padding * 2));
+    svg.setAttribute('data-theme', theme);
+
+    const styleEl = document.createElementNS(svgNS, 'style');
+    styleEl.textContent = css;
+    svg.appendChild(styleEl);
+
+    const fo = document.createElementNS(svgNS, 'foreignObject');
+    fo.setAttribute('width', '100%');
+    fo.setAttribute('height', '100%');
+
+    const wrapper = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+    wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    wrapper.style.cssText = 'width:' + (w + padding * 2) + 'px;height:' + (h + noteExtraHeight + padding * 2) + 'px;box-sizing:border-box;padding:' + padding + 'px;background:' + bg + ';color:' + ink + ';font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif;font-size:14px;line-height:1.5;overflow:hidden;';
+    wrapper.appendChild(clone);
+
+    fo.appendChild(wrapper);
+    svg.appendChild(fo);
+
+    const svgText = new XMLSerializer().serializeToString(svg);
+    const svgUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+
+    const img = new Image();
+    const defaultButtonText = '📷 保存结果 JPG';
+    const fail = function (msg) {
+      btn.textContent = '截图失败：' + msg;
+      setTimeout(function () { btn.textContent = defaultButtonText; }, 2500);
+    };
+    img.onload = function () {
+      const canvas = document.createElement('canvas');
+      canvas.width = (w + padding * 2) * scale;
+      canvas.height = (h + noteExtraHeight + padding * 2) * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        fail('浏览器不支持画布');
+        return;
+      }
+      // JPEG does not preserve transparency, so paint the page background first.
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, w + padding * 2, h + noteExtraHeight + padding * 2);
+      try {
+        const url = canvas.toDataURL('image/jpeg', 0.95);
+        const stamp = new Date();
+        const two = function (n) { return String(n).padStart(2, '0'); };
+        const name = '成本结果_' + stamp.getFullYear() + two(stamp.getMonth() + 1) + two(stamp.getDate()) + '_' + two(stamp.getHours()) + two(stamp.getMinutes()) + two(stamp.getSeconds()) + '.jpg';
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        btn.textContent = '已保存 ' + name;
+        setTimeout(function () { btn.textContent = '📷 保存结果 JPG'; }, 2500);
+      } catch (_) {
+        fail('浏览器不支持导出');
+      }
+    };
+    img.onerror = function () { fail('无法渲染'); };
+    img.src = svgUrl;
+  }
+
+  ids.forEach(id => inputs[id].addEventListener('input', calculate));
+  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+  document.getElementById('capture-btn').addEventListener('click', captureResult);
+  document.getElementById('reset').addEventListener('click', () => {
+    ids.forEach(id => { inputs[id].value = defaults[id]; });
+    try {
+      localStorage.removeItem(storageKey);
+      legacyStorageKeys.forEach(key => localStorage.removeItem(key));
+    } catch (_) {}
+    calculate();
+  });
+  renderTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+  loadSaved();
+  calculate();
+})();
+</script>
+</body>
+</html>
+
+
