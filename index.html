@@ -492,9 +492,9 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
             <div class="bar-value" id="local-compare">¥3.3376</div>
           </div>
           <div class="bar-row" id="row-qwen" data-item="qwen">
-            <div class="bar-name">Qwen3.8-Flash-Next<small>官方 API</small></div>
+            <div class="bar-name">Qwen3.8-Flash-Next<small>官方 API，输入（缓存命中）0.1 元/M</small></div>
             <div class="track"><div class="bar qwen" id="qwen-bar"></div></div>
-            <div class="bar-value" id="qwen-compare" title="输入 ¥0.80/M，输出 ¥2.70/M">¥2.7256</div>
+            <div class="bar-value" id="qwen-compare" title="输入（缓存命中）¥0.10/M，输出 ¥2.70/M">¥2.7256</div>
           </div>
           <div class="bar-row" id="row-deepseek" data-item="deepseek">
             <div class="bar-name">DeepSeek V4 Flash<small>空闲时段</small></div>
@@ -513,10 +513,10 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 
   <section class="assumptions">
     <h3>成本口径</h3>
-    <p>本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入 ¥0.80/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。</p>
+    <p>本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。</p>
   </section>
 </main>
-<footer>所有计算均在本地浏览器完成，不会上传输入数据。GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。Qwen3.8-Flash-Next 参考价：输入 ¥0.80/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。<small class="price-disclaimer">本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。</small></footer>
+<footer>所有计算均在本地浏览器完成，不会上传输入数据。GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。Qwen3.8-Flash-Next 参考价：输入（缓存命中）¥0.10/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。<small class="price-disclaimer">本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。</small></footer>
 <script>
 (() => {
   'use strict';
@@ -636,8 +636,8 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     const deepseekOutputPrice = 4.5;
     const deepseekCost = values.inputTokens / 1000000 * deepseekInputPrice + outputTokens / 1000000 * deepseekOutputPrice;
 
-    // Qwen3.8-Flash-Next (输入 0.8元/M，输出 2.7元/M)
-    const qwenInputPrice = 0.8;
+    // Qwen3.8-Flash-Next (输入（缓存命中）0.1元/M，输出 2.7元/M)
+    const qwenInputPrice = 0.1;
     const qwenOutputPrice = 2.7;
     const qwenCost = values.inputTokens / 1000000 * qwenInputPrice + outputTokens / 1000000 * qwenOutputPrice;
 
@@ -770,8 +770,8 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     const exportNote = document.createElement('div');
     exportNote.style.cssText = 'margin-top:16px;padding:12px 14px;border:1px solid #d5dcdf;border-left:4px solid #d5a64b;border-radius:5px;background:#fff9e9;color:#584b34;font-size:11px;line-height:1.6;overflow-wrap:anywhere;';
     const noteParagraphs = [
-      '本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入 ¥0.80/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。每个人的使用场景可能有所不同，可自行前往 https://li-hikinghat.github.io/llm_cost_calculator/ 计算。本计算器仅供计算本地部署LLM场景电费使用，无其他含义，并非逼你一定要本地部署使用，看不顺眼的可自行退出。',
-      'GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。Qwen3.8-Flash-Next 参考价：输入 ¥0.80/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。',
+      '本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。每个人的使用场景可能有所不同，可自行前往 https://li-hikinghat.github.io/llm_cost_calculator/ 计算。本计算器仅供计算本地部署LLM场景电费使用，无其他含义，并非逼你一定要本地部署使用，看不顺眼的可自行退出。',
+      'GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。Qwen3.8-Flash-Next 参考价：输入（缓存命中）¥0.10/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。',
       '本计算器已在 https://github.com/Li-Hikinghat/llm_cost_calculator 开源，可自行查看代码等'
     ];
     noteParagraphs.forEach(function (text) {
@@ -870,3 +870,4 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 </script>
 </body>
 </html>
+
