@@ -172,6 +172,7 @@ h1 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 34px); line-height: 1.2; font-
   font-weight: 600;
 }
 .field label span { color: var(--muted); font-size: 11px; font-weight: 400; text-align: right; }
+.field label .model-name-label { color: inherit; font-size: inherit; font-weight: inherit; text-align: left; overflow-wrap: anywhere; }
 .price-tag {
   display: inline-block;
   padding: 1px 5px;
@@ -317,7 +318,7 @@ h1 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 34px); line-height: 1.2; font-
 .comparison-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
 .comparison-bars { display: flex; flex-direction: column; gap: 13px; margin: 13px 0; }
 .bar-row { display: grid; grid-template-columns: 128px minmax(0, 1fr) 118px; gap: 10px; align-items: center; margin: 0; transition: transform .2s ease; }
-.bar-name { font-size: 12px; font-weight: 650; }
+.bar-name { font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
 .track { position: relative; height: 12px; background: var(--track-bg); border-radius: 2px; overflow: hidden; }
 .bar { height: 100%; min-width: 2px; border-radius: 2px; transition: width .25s ease; }
 .bar.local { background: var(--teal); }
@@ -399,12 +400,12 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
         </div>
         <div class="field">
           <label for="inputTokens">预计输入长度 <span>一次输入上下文</span></label>
-          <div class="input-wrap"><input id="inputTokens" name="inputTokens" type="number" min="0" step="1" inputmode="numeric" value="32000"><span class="unit">tokens</span></div>
+          <div class="input-wrap"><input id="inputTokens" name="inputTokens" type="number" min="0" step="1" inputmode="numeric" value="1300000000"><span class="unit">tokens</span></div>
           <div class="error" id="inputTokens-error" aria-live="polite"></div>
         </div>
         <div class="field">
-          <label for="outputTokens">预计输出长度 <span>默认 100 万 tokens</span></label>
-          <div class="input-wrap"><input id="outputTokens" name="outputTokens" type="number" min="0" step="1" inputmode="numeric" value="1000000"><span class="unit">tokens</span></div>
+          <label for="outputTokens">预计输出长度 <span>默认 2.3M tokens</span></label>
+          <div class="input-wrap"><input id="outputTokens" name="outputTokens" type="number" min="0" step="1" inputmode="numeric" value="2300000"><span class="unit">tokens</span></div>
           <div class="error" id="outputTokens-error" aria-live="polite"></div>
         </div>
         <div class="field">
@@ -417,12 +418,16 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
           <div class="input-wrap"><input id="hardwareNote" name="hardwareNote" type="text" maxlength="80" value="未填写" placeholder="例如：RTX 5090 × 2 / 256GB 内存"></div>
         </div>
         <div class="field api-field">
-          <label for="cachedInputPrice">GPT5.6 LUNA 缓存输入价 <span class="price-tag">0.1344 元/M</span></label>
+          <label for="modelName">自定义模型名称</label>
+          <div class="input-wrap"><input id="modelName" name="modelName" type="text" maxlength="80" value="GPT5.6 LUNA" placeholder="输入模型名称"></div>
+        </div>
+        <div class="field">
+          <label for="cachedInputPrice"><span class="model-name-label">GPT5.6 LUNA</span> 缓存输入价 <span class="price-tag">0.1344 元/M</span></label>
           <div class="input-wrap"><input id="cachedInputPrice" name="cachedInputPrice" type="number" min="0" step="0.0001" inputmode="decimal" value="0.1344"><span class="unit">元/M</span></div>
           <div class="error" id="cachedInputPrice-error" aria-live="polite"></div>
         </div>
         <div class="field">
-          <label for="outputPrice">GPT5.6 LUNA 输出价 <span class="price-tag">8.06 元/M</span></label>
+          <label for="outputPrice"><span class="model-name-label">GPT5.6 LUNA</span> 输出价 <span class="price-tag">8.06 元/M</span></label>
           <div class="input-wrap"><input id="outputPrice" name="outputPrice" type="number" min="0" step="0.01" inputmode="decimal" value="8.06"><span class="unit">元/M</span></div>
           <div class="error" id="outputPrice-error" aria-live="polite"></div>
         </div>
@@ -442,8 +447,8 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
         </div>
       </div>
       <div class="hero-result">
-        <div class="hero-label">本地综合电费（含一次输入与预计输出）</div>
-        <div class="hero-value"><span id="local-cost">¥3.3376</span> <small>/ 计算场景</small></div>
+        <div class="hero-label">电费</div>
+        <div class="hero-value"><span id="local-cost">¥3.3376</span> <small id="scenario-tokens">/ 入1.3B，出2.3M</small></div>
         <div class="hero-formula" id="formula">(32,000 ÷ 1,000 + 1,000,000 ÷ 40) 秒 × 800W ÷ 1000 × ¥0.60/kWh ÷ 3600</div>
       </div>
 
@@ -451,12 +456,12 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
         <article class="metric">
           <div class="metric-label">Prefill 阶段</div>
           <div class="metric-value" id="prefill-cost">¥0.004267</div>
-          <div class="metric-sub" id="prefill-duration">32 秒 · 32,000 输入 tokens</div>
+          <div class="metric-sub" id="prefill-duration">32 秒</div>
         </article>
         <article class="metric">
           <div class="metric-label">输出阶段</div>
           <div class="metric-value" id="decode-cost">¥3.3333</div>
-          <div class="metric-sub" id="decode-duration">6 小时 57 分 · 1,000,000 输出 tokens</div>
+          <div class="metric-sub" id="decode-duration">6 小时 57 分</div>
         </article>
         <article class="metric">
           <div class="metric-label">本地总耗时</div>
@@ -492,7 +497,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
             <div class="bar-value" id="local-compare">¥3.3376</div>
           </div>
           <div class="bar-row" id="row-qwen" data-item="qwen">
-            <div class="bar-name">Qwen3.8-Flash-Next<small>官方 API，输入（缓存命中）0.1 元/M</small></div>
+            <div class="bar-name">Qwen3.8-Flash-Next</div>
             <div class="track"><div class="bar qwen" id="qwen-bar"></div></div>
             <div class="bar-value" id="qwen-compare" title="输入（缓存命中）¥0.10/M，输出 ¥2.70/M">¥2.7256</div>
           </div>
@@ -502,7 +507,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
             <div class="bar-value" id="deepseek-compare" title="缓存输入 ¥0.05/M，输出 ¥4.50/M">¥4.5016</div>
           </div>
           <div class="bar-row" id="row-api" data-item="api">
-            <div class="bar-name">GPT5.6 LUNA 官方API</div>
+            <div class="bar-name" id="api-model-name">GPT5.6 LUNA</div>
             <div class="track"><div class="bar api" id="api-bar"></div></div>
             <div class="bar-value" id="api-compare">¥8.0643</div>
           </div>
@@ -513,10 +518,10 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 
   <section class="assumptions">
     <h3>成本口径</h3>
-    <p>本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。</p>
+    <p>本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。<span class="model-name-reference">GPT5.6 LUNA</span> API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。</p>
   </section>
 </main>
-<footer>所有计算均在本地浏览器完成，不会上传输入数据。GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。Qwen3.8-Flash-Next 参考价：输入（缓存命中）¥0.10/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。<small class="price-disclaimer">本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。</small></footer>
+<footer>所有计算均在本地浏览器完成，不会上传输入数据。<span class="model-name-reference">GPT5.6 LUNA</span> API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。Qwen3.8-Flash-Next 参考价：输入（缓存命中）¥0.10/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。<small class="price-disclaimer">本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。</small></footer>
 <script>
 (() => {
   'use strict';
@@ -524,8 +529,8 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     power: 800,
     electricity: 0.60,
     speed: 40,
-    inputTokens: 32000,
-    outputTokens: 1000000,
+    inputTokens: 1300000000,
+    outputTokens: 2300000,
     prefillSpeed: 1000,
     cachedInputPrice: 0.1344,
     outputPrice: 8.06
@@ -533,8 +538,8 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
   const ids = Object.keys(defaults);
   const inputs = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
   const hardwareNoteInput = document.getElementById('hardwareNote');
-  const storageKey = 'llm-cost-calculator-v6';
-  const legacyStorageKeys = ['llm-cost-calculator-v5', 'llm-cost-calculator-v4', 'llm-cost-calculator-v2', 'llm-cost-calculator-v1'];
+  const modelNameInput = document.getElementById('modelName');
+  const storageKey = 'llm-cost-calculator-v13';
   const themeKey = 'llm-cost-theme';
 
   function money(value, minimum = 2, maximum = 4) {
@@ -545,6 +550,22 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 
   function compactNumber(value) {
     return value.toLocaleString('zh-CN', { maximumFractionDigits: value < 100 ? 2 : 0 });
+  }
+
+  function formatTokenCount(value) {
+    const unit = value >= 1e9 ? ['B', 1e9] : value >= 1e6 ? ['M', 1e6] : value >= 1e3 ? ['K', 1e3] : ['', 1];
+    return (value / unit[1]).toLocaleString('en-US', { maximumFractionDigits: 2 }) + unit[0];
+  }
+
+  function getModelName() {
+    return modelNameInput.value.trim() || 'GPT5.6 LUNA';
+  }
+
+  function renderModelName() {
+    const name = getModelName();
+    document.querySelectorAll('.model-name-label').forEach(label => { label.textContent = name; });
+    document.getElementById('api-model-name').textContent = name;
+    document.querySelectorAll('.model-name-reference').forEach(label => { label.textContent = name; });
   }
 
   function readValues() {
@@ -590,6 +611,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
       const el = document.getElementById(id);
       if (el) el.textContent = '--';
     });
+    document.getElementById('scenario-tokens').textContent = '/ --';
     document.getElementById('formula').textContent = '输入有效参数后显示计算公式';
     document.getElementById('local-bar').style.width = '0';
     document.getElementById('api-bar').style.width = '0';
@@ -611,6 +633,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
   }
 
   function calculate() {
+    renderModelName();
     const values = readValues();
     if (!validate(values)) {
       setInvalidState();
@@ -646,11 +669,12 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 
     document.getElementById('status').textContent = '计算有效';
     document.getElementById('local-cost').textContent = money(localCost);
+    document.getElementById('scenario-tokens').textContent = '/ 入' + formatTokenCount(values.inputTokens) + '，出' + formatTokenCount(outputTokens);
     document.getElementById('formula').textContent = '(' + compactNumber(values.inputTokens) + ' ÷ ' + compactNumber(values.prefillSpeed) + ' + ' + compactNumber(values.outputTokens) + ' ÷ ' + compactNumber(values.speed) + ') 秒 × ' + compactNumber(values.power) + 'W ÷ 1000 × ' + money(values.electricity, 2, 4) + '/kWh ÷ 3600';
     document.getElementById('prefill-cost').textContent = money(prefillCost);
-    document.getElementById('prefill-duration').textContent = formatDuration(prefillSeconds) + ' · ' + compactNumber(values.inputTokens) + ' 输入 tokens';
+    document.getElementById('prefill-duration').textContent = formatDuration(prefillSeconds);
     document.getElementById('decode-cost').textContent = money(decodeCost);
-    document.getElementById('decode-duration').textContent = formatDuration(decodeSeconds) + ' · ' + compactNumber(values.outputTokens) + ' 输出 tokens';
+    document.getElementById('decode-duration').textContent = formatDuration(decodeSeconds);
     document.getElementById('duration').textContent = formatDuration(durationSeconds);
     document.getElementById('duration-days').textContent = 'Prefill + Decode · 约 ' + (durationSeconds / 86400).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) + ' 天';
     document.getElementById('hourly-tokens').textContent = compactNumber(hourlyTokens);
@@ -680,7 +704,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 
 
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ ...values, hardwareNote }));
+      localStorage.setItem(storageKey, JSON.stringify({ ...values, hardwareNote, modelName: modelNameInput.value }));
       document.getElementById('saved-status').textContent = '参数已保存在本机浏览器';
     } catch (_) {
       document.getElementById('saved-status').textContent = '当前浏览器未保存参数';
@@ -695,21 +719,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
           if (Number.isFinite(Number(current[id]))) inputs[id].value = current[id];
         });
         if (typeof current.hardwareNote === 'string') hardwareNoteInput.value = current.hardwareNote;
-        return;
-      }
-
-      let legacy = null;
-      for (const key of legacyStorageKeys) {
-        const candidate = JSON.parse(localStorage.getItem(key));
-        if (candidate && typeof candidate === 'object') {
-          legacy = candidate;
-          break;
-        }
-      }
-      if (legacy) {
-        ['power', 'electricity', 'speed'].forEach(id => {
-          if (Number.isFinite(Number(legacy[id]))) inputs[id].value = legacy[id];
-        });
+        if (typeof current.modelName === 'string') modelNameInput.value = current.modelName;
       }
     } catch (_) {}
   }
@@ -770,8 +780,8 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     const exportNote = document.createElement('div');
     exportNote.style.cssText = 'margin-top:16px;padding:12px 14px;border:1px solid #d5dcdf;border-left:4px solid #d5a64b;border-radius:5px;background:#fff9e9;color:#584b34;font-size:11px;line-height:1.6;overflow-wrap:anywhere;';
     const noteParagraphs = [
-      '本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。GPT5.6 LUNA 官方 API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。每个人的使用场景可能有所不同，可自行前往 https://li-hikinghat.github.io/llm_cost_calculator/ 计算。本计算器仅供计算本地部署LLM场景电费使用，无其他含义，并非逼你一定要本地部署使用，看不顺眼的可自行退出。',
-      'GPT5.6 LUNA 官方 API 默认参考价：缓存输入 ¥0.1344/M、输出 ¥8.06/M，均可在页面中修改。Qwen3.8-Flash-Next 参考价：输入（缓存命中）¥0.10/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。',
+      '本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。' + getModelName() + ' API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。每个人的使用场景可能有所不同，可自行前往 https://li-hikinghat.github.io/llm_cost_calculator/ 计算。本计算器仅供计算本地部署LLM场景电费使用，无其他含义，并非逼你一定要本地部署使用，看不顺眼的可自行退出。',
+      getModelName() + ' API 价格以页面输入为准（默认缓存输入 ¥0.1344/M、输出 ¥8.06/M）。Qwen3.8-Flash-Next 参考价：输入（缓存命中）¥0.10/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。',
       '本计算器已在 https://github.com/Li-Hikinghat/llm_cost_calculator 开源，可自行查看代码等'
     ];
     noteParagraphs.forEach(function (text) {
@@ -852,15 +862,14 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 
   ids.forEach(id => inputs[id].addEventListener('input', calculate));
   hardwareNoteInput.addEventListener('input', calculate);
+  modelNameInput.addEventListener('input', calculate);
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
   document.getElementById('capture-btn').addEventListener('click', captureResult);
   document.getElementById('reset').addEventListener('click', () => {
     ids.forEach(id => { inputs[id].value = defaults[id]; });
     hardwareNoteInput.value = '未填写';
-    try {
-      localStorage.removeItem(storageKey);
-      legacyStorageKeys.forEach(key => localStorage.removeItem(key));
-    } catch (_) {}
+    modelNameInput.value = 'GPT5.6 LUNA';
+    try { localStorage.removeItem(storageKey); } catch (_) {}
     calculate();
   });
   renderTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
@@ -868,6 +877,9 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
   calculate();
 })();
 </script>
+</body>
+</html>
+
 </body>
 </html>
 
