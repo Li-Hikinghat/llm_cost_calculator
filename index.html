@@ -747,10 +747,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     if (!target || !btn) return;
     // Export with a stable desktop-width canvas even when the page is viewed on mobile.
     const w = Math.max(760, target.offsetWidth);
-    const h = Math.max(1, target.offsetHeight);
     const padding = 16;
-    // The footer text wraps based on the export width. Keep generous room so no line is clipped.
-    const noteExtraHeight = 620;
     const scale = 2;
     const theme = document.documentElement.dataset.theme || 'light';
     const cs = getComputedStyle(document.documentElement);
@@ -793,11 +790,22 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     exportNote.lastElementChild.style.marginBottom = '0';
     clone.appendChild(exportNote);
 
+    // Measure the complete export, including the note after text wrapping.
+    clone.style.position = 'absolute';
+    clone.style.left = '-10000px';
+    clone.style.visibility = 'hidden';
+    document.body.appendChild(clone);
+    const h = Math.ceil(Math.max(clone.getBoundingClientRect().height, clone.scrollHeight)) + 2;
+    clone.remove();
+    clone.style.position = '';
+    clone.style.left = '';
+    clone.style.visibility = '';
+
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('xmlns', svgNS);
     svg.setAttribute('width', String(w + padding * 2));
-    svg.setAttribute('height', String(h + noteExtraHeight + padding * 2));
+    svg.setAttribute('height', String(h + padding * 2));
     svg.setAttribute('overflow', 'visible');
     svg.setAttribute('data-theme', theme);
 
@@ -811,7 +819,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 
     const wrapper = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
     wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    wrapper.style.cssText = 'width:' + (w + padding * 2) + 'px;height:' + (h + noteExtraHeight + padding * 2) + 'px;box-sizing:border-box;padding:' + padding + 'px;background:' + bg + ';color:' + ink + ';font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif;font-size:14px;line-height:1.5;overflow:visible;';
+    wrapper.style.cssText = 'width:' + (w + padding * 2) + 'px;height:' + (h + padding * 2) + 'px;box-sizing:border-box;padding:' + padding + 'px;background:' + bg + ';color:' + ink + ';font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif;font-size:14px;line-height:1.5;overflow:visible;';
     wrapper.appendChild(clone);
 
     fo.appendChild(wrapper);
@@ -829,7 +837,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     img.onload = function () {
       const canvas = document.createElement('canvas');
       canvas.width = (w + padding * 2) * scale;
-      canvas.height = (h + noteExtraHeight + padding * 2) * scale;
+      canvas.height = (h + padding * 2) * scale;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         fail('浏览器不支持画布');
@@ -838,7 +846,7 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0, w + padding * 2, h + noteExtraHeight + padding * 2);
+      ctx.drawImage(img, 0, 0, w + padding * 2, h + padding * 2);
       try {
         const url = canvas.toDataURL('image/jpeg', 0.95);
         const stamp = new Date();
@@ -879,7 +887,3 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 </script>
 </body>
 </html>
-
-</body>
-</html>
-
