@@ -777,9 +777,10 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
     const exportNote = document.createElement('div');
     exportNote.style.cssText = 'margin-top:16px;padding:12px 14px;border:1px solid #d5dcdf;border-left:4px solid #d5a64b;border-radius:5px;background:#fff9e9;color:#584b34;font-size:11px;line-height:1.6;overflow-wrap:anywhere;';
     const noteParagraphs = [
-      '本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。' + getModelName() + ' API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。每个人的使用场景可能有所不同，可自行前往 https://li-hikinghat.github.io/llm_cost_calculator/ 计算。本计算器仅供计算本地部署LLM场景电费使用，无其他含义，并非逼你一定要本地部署使用，看不顺眼的可自行退出。',
+      '免责声明：本地综合电费 = Prefill 电费 + Decode 电费，两个阶段暂按同一整机平均功耗计算；不含服务器购置、折旧、闲置功耗、散热、机房、运维和网络成本。' + getModelName() + ' API 输入按缓存输入价、输出按输出价估算；Qwen3.8-Flash-Next 按输入（缓存命中）¥0.10/M、输出 ¥2.70/M 估算；DeepSeek V4 Flash 按空闲时段缓存输入价与输出价估算；API 总费用 = 输入费用 + 预计输出 tokens 费用。每个人的使用场景可能有所不同，可自行前往 https://li-hikinghat.github.io/llm_cost_calculator/ 计算。本计算器仅供计算本地部署LLM场景电费使用，无其他含义，并非逼你一定要本地部署使用，看不顺眼的可自行退出。',
       getModelName() + ' API 价格以页面输入为准（默认缓存输入 ¥0.1344/M、输出 ¥8.06/M）。Qwen3.8-Flash-Next 参考价：输入（缓存命中）¥0.10/M、输出 ¥2.70/M。DeepSeek V4 Flash 空闲时段参考价：缓存输入 ¥0.05/M、输出 ¥4.50/M。本计算器以官方 API 最低价格参考，价格可能有变动，可自行调整价格。',
-      '本计算器已在 https://github.com/Li-Hikinghat/llm_cost_calculator 开源，可自行查看代码等'
+      '本计算器已在 https://github.com/Li-Hikinghat/llm_cost_calculator 开源，可自行查看代码等',
+      '本计算器计算的线上API价格可能偏低，本地Token价格可能偏高，故仅供估算之用，需要非常精确结果的可自行计算！感谢支持！上来就喷人的滚蛋一边玩去'
     ];
     noteParagraphs.forEach(function (text) {
       const paragraph = document.createElement('p');
@@ -887,3 +888,4 @@ footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 24px; color: var(
 </script>
 </body>
 </html>
+
